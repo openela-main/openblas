@@ -1,6 +1,6 @@
 %bcond_with system_lapack
 # Version of bundled lapack
-%global lapackver 3.9.1
+%global lapackver 3.11.0
 
 # DO NOT "CLEAN UP" OR MODIFY THIS SPEC FILE WITHOUT ASKING THE
 # MAINTAINER FIRST!
@@ -14,12 +14,12 @@
 # "obsoleted" features are still kept in the spec.
 
 Name:           openblas
-Version:        0.3.21
+Version:        0.3.26
 Release:        2%{?dist}
 Summary:        An optimized BLAS library based on GotoBLAS2
-License:        BSD
-URL:            https://github.com/xianyi/OpenBLAS/
-Source0:        https://github.com/xianyi/OpenBLAS/archive/v%{version}/openblas-%{version}.tar.gz
+License:        BSD-3-Clause
+URL:            https://github.com/OpenMathLib/OpenBLAS
+Source0:        %url/archive/v%{version}/OpenBLAS-%{version}.tar.gz
 # Use system lapack
 Patch0:         openblas-0.2.15-system_lapack.patch
 # Drop extra p from threaded library name
@@ -28,8 +28,8 @@ Patch1:         openblas-0.2.5-libname.patch
 Patch2:         openblas-0.2.15-constructor.patch
 # Supply the proper flags to the test makefile
 Patch3:         openblas-0.3.11-tests.patch
-# Fix SBGEMM test to work with INTERFACE64
-Patch4:         openblas-0.3.21-sbgemm-test.patch
+# Fix incompatible pointer types (causes FTBFS on ppc64le)
+Patch4:         openblas-0.3.26-incompatibletypes.patch
 
 BuildRequires: make
 BuildRequires:  gcc
@@ -243,7 +243,7 @@ cd OpenBLAS-%{version}
 %patch2 -p1 -b .constructor
 %endif
 %patch3 -p1 -b .tests
-%patch4 -p1 -b .sbgemm
+%patch4 -p1 -b .incompatibletypes
 
 # Fix source permissions
 find -name \*.f -exec chmod 644 {} \;
@@ -649,6 +649,14 @@ rm -rf %{buildroot}%{_libdir}/cmake
 %endif
 
 %changelog
+* Thu Aug 22 2024 Pavel Simovec <psimovec@redhat.com> - 0.3.26-2
+- Re-include openblas.pc
+- Resolves: RHEL-20160
+
+* Thu Jun 27 2024 Pavel Simovec <psimovec@redhat.com> - 0.3.26-1
+- Update to 0.3.26
+- Resolves: RHEL-20160
+
 * Tue Jan 31 2023 Matej Mužila <mmuzila@redhat.com> - 0.3.21-2
 - Include openblas.pc
   Resolves: #2115737
