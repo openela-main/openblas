@@ -1,0 +1,22 @@
+From 8a1710dd0da445d76e6eaeb35b180d24efac0919 Mon Sep 17 00:00:00 2001
+From: Martin Kroeker <martin@ruby.chemie.uni-freiburg.de>
+Date: Sun, 6 Oct 2024 20:03:32 +0200
+Subject: [PATCH] don't apply switch_ratio to tail of loop
+
+---
+ driver/level3/level3_thread.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/driver/level3/level3_thread.c b/driver/level3/level3_thread.c
+index ddb39abd66..3d56c45a99 100644
+--- a/driver/level3/level3_thread.c
++++ b/driver/level3/level3_thread.c
+@@ -742,7 +742,7 @@ static int gemm_driver(blas_arg_t *args, BLASLONG *range_m, BLASLONG
+     num_parts  = 0;
+     while (n > 0){
+       width = blas_quickdivide(n + nthreads - num_parts - 1, nthreads - num_parts);
+-      if (width < switch_ratio) {
++      if (width < switch_ratio && width > 1) {
+         width = switch_ratio;
+       }
+       width = round_up(n, width, GEMM_PREFERED_SIZE);
