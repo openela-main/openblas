@@ -1,6 +1,6 @@
 %bcond_with system_lapack
 # Version of bundled lapack
-%global lapackver 3.11.0
+%global lapackver 3.12.0
 
 # DO NOT "CLEAN UP" OR MODIFY THIS SPEC FILE WITHOUT ASKING THE
 # MAINTAINER FIRST!
@@ -14,8 +14,8 @@
 # "obsoleted" features are still kept in the spec.
 
 Name:           openblas
-Version:        0.3.28
-Release:        1%{?dist}
+Version:        0.3.29
+Release:        2%{?dist}
 Summary:        An optimized BLAS library based on GotoBLAS2
 
 License:        BSD-3-Clause
@@ -30,8 +30,6 @@ Patch1:         openblas-0.2.5-libname.patch
 Patch2:         openblas-0.2.15-constructor.patch
 # Supply the proper flags to the test makefile
 Patch3:         openblas-0.3.11-tests.patch
-# https://github.com/OpenMathLib/OpenBLAS/issues/49172
-Patch4:         openblas-0.3.28-zgemm-cgemm.patch
 
 BuildRequires: make
 BuildRequires:  gcc
@@ -238,14 +236,13 @@ This package contains the static libraries.
 tar zxf %{SOURCE0}
 cd OpenBLAS-%{version}
 %if %{with system_lapack}
-%patch 0 -p1 -b .system_lapack
+%patch -P 0 -p1 -b .system_lapack
 %endif
-%patch 1 -p1 -b .libname
+%patch -P 1 -p1 -b .libname
 %if 0%{?rhel} == 5
-%patch 2 -p1 -b .constructor
+%patch -P 2 -p1 -b .constructor
 %endif
-%patch 3 -p1 -b .tests
-%patch 4 -p1 -b .gemm
+%patch -P 3 -p1 -b .tests
 
 # Fix source permissions
 find -name \*.f -exec chmod 644 {} \;
@@ -383,6 +380,9 @@ TARGET="TARGET=ARMV8 DYNAMIC_ARCH=1 DYNAMIC_OLDER=1"
 %ifarch s390x
 TARGET="TARGET=ZARCH_GENERIC DYNAMIC_ARCH=1 DYNAMIC_OLDER=1"
 %endif
+%ifarch riscv64
+TARGET="TARGET=RISCV64_GENERIC DYNAMIC_ARCH=0"
+%endif
 
 %if 0%{?rhel} == 5
 # Gfortran too old to recognize -frecursive
@@ -405,6 +405,7 @@ make -C threaded   $TARGET USE_THREAD=1 USE_OPENMP=0 FC=gfortran CC=gcc COMMON_O
 COMMON="%{optflags} -fPIC -fopenmp -pthread"
 FCOMMON="$COMMON -frecursive"
 make -C openmp     $TARGET USE_THREAD=1 USE_OPENMP=1 FC=gfortran CC=gcc COMMON_OPT="$COMMON" FCOMMON_OPT="$FCOMMON" $NMAX LIBPREFIX="libopenblaso"     $AVX $LAPACKE INTERFACE64=0 %{with cpp_thread_check:CPP_THREAD_SAFETY_TEST=1}
+make -C openmp     $TARGET USE_THREAD=1 USE_OPENMP=1 FC=gfortran CC=gcc COMMON_OPT="$COMMON" FCOMMON_OPT="$FCOMMON" $NMAX LIBPREFIX="libopenblaso"     $AVX $LAPACKE INTERFACE64=0 %{with cpp_thread_check:CPP_THREAD_SAFETY_TEST=1} lapack-test
 
 %if %build64
 COMMON="%{optflags} -fPIC"
@@ -429,7 +430,7 @@ make -C openmp64_   $TARGET USE_THREAD=1 USE_OPENMP=1 FC=gfortran CC=gcc COMMON_
 %install
 rm -rf %{buildroot}
 # Install serial library and headers
-make -C serial USE_THREAD=0 PREFIX=%{buildroot} OPENBLAS_LIBRARY_DIR=%{buildroot}%{_libdir} OPENBLAS_INCLUDE_DIR=%{buildroot}%{_includedir}/%name OPENBLAS_BINARY_DIR=%{buildroot}%{_bindir} OPENBLAS_CMAKE_DIR=%{buildroot}%{_libdir}/cmake install
+make -C serial USE_THREAD=0 DESTDIR=%{buildroot} OPENBLAS_LIBRARY_DIR=%{_libdir} OPENBLAS_INCLUDE_DIR=%{_includedir}/%name OPENBLAS_BINARY_DIR=%{_bindir} OPENBLAS_CMAKE_DIR=%{_libdir}/cmake install
 
 # Copy lapacke include files
 %if %{with system_lapack} && %{lapacke}
@@ -444,6 +445,9 @@ suffix=""
 # but archs that don't have it do have one
 %ifarch armv7hl
 suffix="_armv7"
+%endif
+%ifarch riscv64
+suffix="_riscv64_generic"
 %endif
 slibname=`basename %{buildroot}%{_libdir}/libopenblas${suffix}-*.so .so`
 mv %{buildroot}%{_libdir}/${slibname}.a %{buildroot}%{_libdir}/lib%{name}.a
@@ -561,8 +565,6 @@ done
 
 # Get rid of generated CMake config
 rm -rf %{buildroot}%{_libdir}/cmake
-# Get rid of generated pkgconfig
-rm -rf %{buildroot}%{_libdir}/pkgconfig
 
 %ldconfig_scriptlets
 
@@ -625,6 +627,8 @@ rm -rf %{buildroot}%{_libdir}/pkgconfig
 
 %files devel
 %{_includedir}/%{name}/
+%{_libdir}/pkgconfig/
+%{_libdir}/pkgconfig/%{name}.pc
 %{_libdir}/lib%{name}.so
 %{_libdir}/lib%{name}o.so
 %{_libdir}/lib%{name}p.so
@@ -651,6 +655,21 @@ rm -rf %{buildroot}%{_libdir}/pkgconfig
 %endif
 
 %changelog
+* Mon Jul 07 2025 Pavel Simovec <psimovec@redhat.com> - 0.3.29-2
+- Re-include openblas.pc
+- Resolves: RHEL-72679
+
+* Wed Apr 09 2025 Pavel Simovec <psimovec@redhat.com> - 0.3.29-1
+- Update to 0.3.29
+- Resolves: RHEL-82829
+
+* Mon Mar 24 2025 David Abdurachmanov <davidlt@rivosinc.com> - 0.3.28-3
+- Add riscv64
+
+* Fri Jan 10 2025 Pavel Simovec <psimovec@redhat.com> - 0.3.28-2
+- Waive annocheck: --skip-optimization
+- Resolves: RHEL-33513
+
 * Tue Nov 19 2024 Pavel Simovec <psimovec@redhat.com> - 0.3.28-1
 - Update to 0.3.28
   Resolves: BZ#2273704
